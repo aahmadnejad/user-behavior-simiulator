@@ -24,30 +24,41 @@ class UserBehaviorSimulator:
     def load_config(self, config_file):
         default_config = {
             "websites": [
-                "https://www.google.com",
+                "https://www.amazon.ca",
                 "https://www.wikipedia.org",
+                "https://www.google.com",
                 "https://www.stackoverflow.com",
-                "https://www.github.com"
+                "https://www.github.com",
+                "https://www.reddit.com",
+                "https://www.news.ycombinator.com",
+                "https://www.yorku.ca/research/bccc/",
+                "https://www.yorku.ca/"
             ],
             "youtube_videos": [
                 "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-                "https://www.youtube.com/watch?v=3JZ_D3ELwOQ"
+                "https://www.youtube.com/watch?v=3JZ_D3ELwOQ",
+                "https://www.youtube.com/watch?v=oHg5SJYRHA0",
+                "https://www.youtube.com/watch?v=7N_NNVeKat8"
             ],
             "media_urls": [
-                "https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_1mb.mp4"
+                "https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_1mb.mp4",
+                "https://file-examples.com/storage/fe6e2f36b3d06aff0bf72da/2017/10/file_example_JPG_100kB.jpg"
             ],
             "target_ips": [
                 "192.168.1.100",
                 "192.168.1.101"
             ],
             "ip_range": {
-                "enabled": False,
+                "enabled": True,
                 "network": "192.168.1.0",
                 "subnet_mask": "255.255.255.0",
-                "start_ip": "192.168.1.100",
+                "start_ip": "192.168.1.50",
                 "end_ip": "192.168.1.200",
                 "exclude_ips": [
                     "192.168.1.1",
+                    "192.168.1.61",
+                    "192.168.1.54",
+                    "192.168.1.53",
                     "192.168.1.255"
                 ]
             },
@@ -58,10 +69,10 @@ class UserBehaviorSimulator:
             ],
             "file_share_port": 8888,
             "daily_sessions": 3,
-            "session_duration_minutes": [30, 60],
-            "explore_time_per_site": [30, 120],
+            "session_duration_minutes": [50, 120],
+            "explore_time_per_site": [2, 10],
             "files_to_create_per_day": 5,
-            "task_wait_minutes": [2, 8],
+            "task_wait_minutes": [0, 5],
             "ping_count": 4,
             "video_completion_check_interval": 30,
             "links_per_website": [2, 6],
