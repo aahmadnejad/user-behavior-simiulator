@@ -41,7 +41,7 @@ class UserBehaviorSimulator:
                 "192.168.1.101"
             ],
             "ip_range": {
-                "enabled": false,
+                "enabled": False,
                 "network": "192.168.1.0",
                 "subnet_mask": "255.255.255.0",
                 "start_ip": "192.168.1.100",
