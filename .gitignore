@@ -3,3 +3,6 @@ user_behavior_simulator.egg-info
 config.json
 __pycache__
 /__pycache__
+.idea
+dist
+build
