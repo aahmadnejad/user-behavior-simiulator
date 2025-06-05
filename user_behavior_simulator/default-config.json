@@ -206,6 +206,27 @@
             }
         ]
     },
+    "imap_config": {
+        "enabled": false,
+        "servers": [
+            {
+                "server": "imap.gmail.com",
+                "port": 993,
+                "username": "your_email@gmail.com",
+                "password": "your_app_password",
+                "use_ssl": true
+            }
+        ],
+        "operations": [
+            "list_folders",
+            "check_inbox",
+            "search_emails",
+            "read_recent",
+            "mark_read",
+            "check_sent"
+        ],
+        "operations_per_session": [2, 5]
+    },
     "save_paths": {
         "text_files": "",
         "downloads": "",
@@ -263,6 +284,16 @@
             {
                 "task": "ssh_operations",
                 "time": "17:00",
+                "enabled": true
+            },
+            {
+                "task": "run_random_applications",
+                "time": "17:30",
+                "enabled": true
+            },
+            {
+                "task": "imap_operations",
+                "time": "18:00",
                 "enabled": true
             }
         ]
