@@ -374,8 +374,6 @@ class UserBehaviorSimulator:
 
         try:
             import imaplib
-            import email
-            from email.header import decode_header
 
             imap_config = self.config['imap_config']
             servers = imap_config.get('servers', [])
@@ -516,6 +514,9 @@ class UserBehaviorSimulator:
                     for msg_id in recent_ids:
                         status, msg_data = mail.fetch(msg_id, '(RFC822)')
                         if status == 'OK':
+                            import email
+                            from email.header import decode_header
+
                             email_body = msg_data[0][1]
                             email_message = email.message_from_bytes(email_body)
 
@@ -966,9 +967,55 @@ class UserBehaviorSimulator:
             except Exception:
                 pass
 
+        self.close_browser()
         print(f"[{datetime.now().strftime('%H:%M:%S')}] Completed website browsing task")
         if not self.config.get('scheduled_tasks', {}).get('enabled', False):
             self.wait_between_tasks()
+
+    def close_browser(self):
+        try:
+            current_os = platform.system()
+
+            if current_os == "Windows":
+                browser_processes = [
+                    'firefox.exe', 'chrome.exe', 'msedge.exe', 'iexplore.exe',
+                    'brave.exe', 'opera.exe', 'vivaldi.exe'
+                ]
+
+                for process in browser_processes:
+                    try:
+                        subprocess.run(f'taskkill /f /im {process}', shell=True, capture_output=True, timeout=10)
+                    except:
+                        continue
+
+            elif current_os == "Linux":
+                browser_processes = [
+                    'firefox', 'google-chrome', 'chromium-browser', 'brave-browser',
+                    'opera', 'vivaldi'
+                ]
+
+                for process in browser_processes:
+                    try:
+                        subprocess.run(['pkill', '-f', process], capture_output=True, timeout=10)
+                    except:
+                        continue
+
+            else:
+                browser_processes = [
+                    'Firefox', 'Google Chrome', 'Safari', 'Opera', 'Brave Browser'
+                ]
+
+                for process in browser_processes:
+                    try:
+                        subprocess.run(['pkill', '-f', process], capture_output=True, timeout=10)
+                    except:
+                        continue
+
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] Closed browser applications")
+            time.sleep(2)
+
+        except Exception as e:
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] Browser close error: {e}")
 
     def get_youtube_video_duration(self, video_url):
         try:
@@ -1004,7 +1051,50 @@ class UserBehaviorSimulator:
                 duration = self.get_youtube_video_duration(video)
                 webbrowser.open(video)
 
-                time.sleep(random.randint(3, 8))
+                time.sleep(random.randint(8, 15))
+
+                try:
+                    import pyautogui
+
+                    screen_width, screen_height = pyautogui.size()
+                    center_x = screen_width // 2
+                    center_y = screen_height // 2
+
+                    for attempt in range(3):
+                        try:
+                            play_button = pyautogui.locateCenterOnScreen(None)
+                        except:
+                            play_positions = [
+                                (center_x, center_y),
+                                (center_x - 50, center_y),
+                                (center_x + 50, center_y),
+                                (center_x, center_y - 50),
+                                (center_x, center_y + 50)
+                            ]
+
+                            for x, y in play_positions:
+                                try:
+                                    pyautogui.click(x, y)
+                                    time.sleep(2)
+                                    break
+                                except:
+                                    continue
+                            break
+
+                        time.sleep(2)
+
+                    time.sleep(5)
+
+                    pyautogui.press('space')
+                    time.sleep(2)
+                    pyautogui.press('space')
+
+                    print(f"[{datetime.now().strftime('%H:%M:%S')}] Attempted to start video playback")
+
+                except ImportError:
+                    print(f"[{datetime.now().strftime('%H:%M:%S')}] Video auto-play requires pyautogui")
+                except Exception as e:
+                    print(f"[{datetime.now().strftime('%H:%M:%S')}] Video play attempt error: {e}")
 
                 check_interval = self.config.get('video_completion_check_interval', 30)
                 elapsed = 0
@@ -1027,8 +1117,11 @@ class UserBehaviorSimulator:
 
                     elapsed += wait_time
 
+                self.close_browser()
+
             except:
                 time.sleep(random.randint(180, 600))
+                self.close_browser()
         print(f"[{datetime.now().strftime('%H:%M:%S')}] Completed YouTube watching task")
         if not self.config.get('scheduled_tasks', {}).get('enabled', False):
             self.wait_between_tasks()
@@ -1466,8 +1559,18 @@ class UserBehaviorSimulator:
             import smtplib
             from email.mime.multipart import MIMEMultipart
             from email.mime.text import MIMEText
+            from email.mime.base import MIMEBase
+            from email import encoders
 
             smtp_config = self.config['smtp_config']
+            provider = smtp_config.get('provider', 'gmail')
+
+            if provider in smtp_config:
+                server_config = smtp_config[provider]
+            else:
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] SMTP provider '{provider}' not configured")
+                return
+
             recipients = smtp_config.get('recipients', [])
 
             if not recipients:
@@ -1477,7 +1580,7 @@ class UserBehaviorSimulator:
             recipient = random.choice(recipients)
 
             msg = MIMEMultipart()
-            msg['From'] = smtp_config['username']
+            msg['From'] = server_config['username']
             msg['To'] = recipient
             msg['Subject'] = f"Automated Message - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
 
@@ -1525,16 +1628,26 @@ class UserBehaviorSimulator:
                             self.attach_file_to_email(msg, filepath)
                             attached_files.append(os.path.basename(filepath))
 
-            server = smtplib.SMTP(smtp_config['server'], smtp_config['port'])
-            if smtp_config.get('use_tls', True):
+            server = smtplib.SMTP(server_config['server'], server_config['port'])
+            server.set_debuglevel(0)
+
+            if server_config.get('use_tls', True):
                 server.starttls()
 
-            server.login(smtp_config['username'], smtp_config['password'])
-            server.send_message(msg)
-            server.quit()
+            try:
+                server.login(server_config['username'], server_config['password'])
+                server.send_message(msg)
+                server.quit()
 
-            print(
-                f"[{datetime.now().strftime('%H:%M:%S')}] SMTP email sent to {recipient} with {len(attached_files)} attachments: {', '.join(attached_files)}")
+                print(
+                    f"[{datetime.now().strftime('%H:%M:%S')}] SMTP email sent via {provider} to {recipient} with {len(attached_files)} attachments: {', '.join(attached_files)}")
+
+            except smtplib.SMTPAuthenticationError as e:
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] SMTP Authentication failed for {provider}: {e}")
+                print(
+                    f"[{datetime.now().strftime('%H:%M:%S')}] Check your username/password and enable app passwords if needed")
+            except smtplib.SMTPException as e:
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] SMTP error for {provider}: {e}")
 
         except ImportError as e:
             print(f"[{datetime.now().strftime('%H:%M:%S')}] SMTP operations require email libraries: {e}")
@@ -1550,6 +1663,8 @@ class UserBehaviorSimulator:
             import mimetypes
             from email.mime.base import MIMEBase
             from email.mime.text import MIMEText
+            from email.mime.image import MIMEImage
+            from email.mime.audio import MIMEAudio
             from email import encoders
 
             filename = os.path.basename(filepath)
@@ -1564,10 +1679,8 @@ class UserBehaviorSimulator:
                 if main_type == 'text':
                     attachment = MIMEText(fp.read().decode('utf-8'), _subtype=sub_type)
                 elif main_type == 'image':
-                    from email.mime.image import MIMEImage
                     attachment = MIMEImage(fp.read(), _subtype=sub_type)
                 elif main_type == 'audio':
-                    from email.mime.audio import MIMEAudio
                     attachment = MIMEAudio(fp.read(), _subtype=sub_type)
                 else:
                     attachment = MIMEBase(main_type, sub_type)

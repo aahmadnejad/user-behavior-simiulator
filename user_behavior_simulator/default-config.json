@@ -75,11 +75,35 @@
     },
     "smtp_config": {
         "enabled": false,
-        "server": "smtp.gmail.com",
-        "port": 587,
-        "username": "your_email@gmail.com",
-        "password": "your_app_password",
-        "use_tls": true,
+        "provider": "gmail",
+        "gmail": {
+            "server": "smtp.gmail.com",
+            "port": 587,
+            "username": "your_email@gmail.com",
+            "password": "your_app_password",
+            "use_tls": true
+        },
+        "outlook": {
+            "server": "smtp-mail.outlook.com",
+            "port": 587,
+            "username": "your_email@outlook.com",
+            "password": "your_password",
+            "use_tls": true
+        },
+        "yahoo": {
+            "server": "smtp.mail.yahoo.com",
+            "port": 587,
+            "username": "your_email@yahoo.com",
+            "password": "your_app_password",
+            "use_tls": true
+        },
+        "custom": {
+            "server": "mail.company.com",
+            "port": 587,
+            "username": "employee@company.com",
+            "password": "corp_password",
+            "use_tls": true
+        },
         "recipients": [
             "recipient1@example.com",
             "recipient2@example.com"
