@@ -1025,43 +1025,80 @@ class UserBehaviorSimulator:
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
             }
 
-            response = requests.get(video_url, headers=headers, timeout=15)
-            content = response.text
+            if platform.system() == "Windows":
+                try:
+                    response = requests.get(video_url, headers=headers, timeout=20)
+                    content = response.text
+                    print(f"[{datetime.now().strftime('%H:%M:%S')}] Successfully fetched video page on Windows")
+                except Exception as e:
+                    print(f"[{datetime.now().strftime('%H:%M:%S')}] Windows requests failed: {e}, trying PowerShell...")
+                    try:
+                        ps_command = f'(Invoke-WebRequest -Uri "{video_url}" -UserAgent "Mozilla/5.0").Content'
+                        result = subprocess.run(['powershell', '-Command', ps_command],
+                                                capture_output=True, text=True, timeout=30)
+                        content = result.stdout
+                        print(f"[{datetime.now().strftime('%H:%M:%S')}] PowerShell fetch successful")
+                    except Exception as ps_error:
+                        print(f"[{datetime.now().strftime('%H:%M:%S')}] PowerShell also failed: {ps_error}")
+                        raise ps_error
+            else:
+                try:
+                    response = requests.get(video_url, headers=headers, timeout=20)
+                    content = response.text
+                    print(f"[{datetime.now().strftime('%H:%M:%S')}] Successfully fetched video page on Linux/Mac")
+                except Exception as e:
+                    print(f"[{datetime.now().strftime('%H:%M:%S')}] Requests failed: {e}, trying curl...")
+                    try:
+                        result = subprocess.run(['curl', '-s', '-A', headers['User-Agent'], video_url],
+                                                capture_output=True, text=True, timeout=30)
+                        content = result.stdout
+                        print(f"[{datetime.now().strftime('%H:%M:%S')}] Curl fetch successful")
+                    except Exception as curl_error:
+                        print(f"[{datetime.now().strftime('%H:%M:%S')}] Curl also failed: {curl_error}")
+                        raise curl_error
 
             duration_patterns = [
-                r'"approxDurationMs":"(\d+)"',
-                r'"lengthSeconds":"(\d+)"',
-                r'duration":"PT(\d+)M(\d+)S"',
-                r'duration":"PT(\d+)S"'
+                (r'"approxDurationMs":"(\d+)"', 'milliseconds'),
+                (r'"lengthSeconds":"(\d+)"', 'seconds'),
+                (r'duration":"PT(\d+)M(\d+)S"', 'minutes_seconds'),
+                (r'duration":"PT(\d+)S"', 'seconds_only'),
+                (r'"duration":{"simpleText":"(\d+):(\d+)"', 'mm_ss'),
+                (r'contentDetails.*duration.*PT(\d+)M(\d+)S', 'api_format')
             ]
 
-            for pattern in duration_patterns:
+            for pattern, format_type in duration_patterns:
                 match = re.search(pattern, content)
                 if match:
-                    if 'approxDurationMs' in pattern:
+                    if format_type == 'milliseconds':
                         duration = int(match.group(1)) / 1000
                         print(f"[{datetime.now().strftime('%H:%M:%S')}] Found duration (ms): {duration} seconds")
                         return int(duration)
-                    elif 'lengthSeconds' in pattern:
+                    elif format_type == 'seconds':
                         duration = int(match.group(1))
                         print(f"[{datetime.now().strftime('%H:%M:%S')}] Found duration (seconds): {duration} seconds")
                         return duration
-                    elif 'PT' in pattern and len(match.groups()) == 2:
+                    elif format_type == 'minutes_seconds':
                         minutes = int(match.group(1))
                         seconds = int(match.group(2))
                         duration = minutes * 60 + seconds
                         print(f"[{datetime.now().strftime('%H:%M:%S')}] Found duration (PT format): {duration} seconds")
                         return duration
-                    elif 'PT' in pattern and len(match.groups()) == 1:
+                    elif format_type == 'seconds_only':
                         duration = int(match.group(1))
                         print(
                             f"[{datetime.now().strftime('%H:%M:%S')}] Found duration (PT seconds): {duration} seconds")
+                        return duration
+                    elif format_type == 'mm_ss':
+                        minutes = int(match.group(1))
+                        seconds = int(match.group(2))
+                        duration = minutes * 60 + seconds
+                        print(f"[{datetime.now().strftime('%H:%M:%S')}] Found duration (mm:ss): {duration} seconds")
                         return duration
 
         except Exception as e:
             print(f"[{datetime.now().strftime('%H:%M:%S')}] Error getting video duration: {e}")
 
-        fallback_duration = random.randint(180, 600)
+        fallback_duration = random.randint(240, 480)
         print(f"[{datetime.now().strftime('%H:%M:%S')}] Using fallback duration: {fallback_duration} seconds")
         return fallback_duration
 
@@ -1077,55 +1114,48 @@ class UserBehaviorSimulator:
 
                 webbrowser.open(video)
 
-                initial_wait = random.randint(10, 20)
+                initial_wait = random.randint(15, 25)
                 print(f"[{datetime.now().strftime('%H:%M:%S')}] Waiting {initial_wait} seconds for page to load...")
                 time.sleep(initial_wait)
 
                 try:
                     import pyautogui
                     pyautogui.FAILSAFE = True
+                    pyautogui.PAUSE = 0.5
 
-                    screen_width, screen_height = pyautogui.size()
-                    center_x = screen_width // 2
-                    center_y = screen_height // 2
+                    print(f"[{datetime.now().strftime('%H:%M:%S')}] Attempting to start video with spacebar...")
 
-                    print(f"[{datetime.now().strftime('%H:%M:%S')}] Attempting to start video playback...")
-
-                    play_attempts = [
-                        (center_x, center_y),
-                        (center_x - 100, center_y),
-                        (center_x + 100, center_y),
-                        (center_x, center_y - 100),
-                        (center_x, center_y + 100),
-                        (center_x - 50, center_y - 50),
-                        (center_x + 50, center_y + 50)
-                    ]
-
-                    for attempt, (x, y) in enumerate(play_attempts):
+                    for attempt in range(5):
                         try:
-                            print(f"[{datetime.now().strftime('%H:%M:%S')}] Click attempt {attempt + 1} at ({x}, {y})")
-                            pyautogui.click(x, y)
+                            print(f"[{datetime.now().strftime('%H:%M:%S')}] Spacebar attempt {attempt + 1}")
+                            pyautogui.press('space')
                             time.sleep(3)
 
-                            if attempt == 2:
-                                print(f"[{datetime.now().strftime('%H:%M:%S')}] Trying spacebar to play/pause")
-                                pyautogui.press('space')
-                                time.sleep(2)
-                                pyautogui.press('space')
+                            if attempt == 1:
+                                print(f"[{datetime.now().strftime('%H:%M:%S')}] Trying 'k' key (YouTube shortcut)")
+                                pyautogui.press('k')
                                 time.sleep(2)
 
-                            if attempt >= 3:
+                            if attempt == 2:
+                                print(f"[{datetime.now().strftime('%H:%M:%S')}] Trying Enter key")
+                                pyautogui.press('enter')
+                                time.sleep(2)
+
+                            if attempt >= 2:
                                 break
 
                         except Exception as e:
-                            print(f"[{datetime.now().strftime('%H:%M:%S')}] Click attempt {attempt + 1} failed: {e}")
+                            print(
+                                f"[{datetime.now().strftime('%H:%M:%S')}] Key press attempt {attempt + 1} failed: {e}")
+                            time.sleep(2)
                             continue
 
                     time.sleep(5)
                     print(f"[{datetime.now().strftime('%H:%M:%S')}] Video should be playing now")
 
                 except ImportError:
-                    print(f"[{datetime.now().strftime('%H:%M:%S')}] PyAutoGUI not available - video will play manually")
+                    print(
+                        f"[{datetime.now().strftime('%H:%M:%S')}] PyAutoGUI not available - install with: pip install pyautogui")
                 except Exception as e:
                     print(f"[{datetime.now().strftime('%H:%M:%S')}] Auto-play attempt failed: {e}")
 
