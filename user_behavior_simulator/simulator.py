@@ -18,6 +18,7 @@ import re
 
 class UserBehaviorSimulator:
     def __init__(self, config_file='config.json'):
+        self.config_file = config_file
         self.config = self.load_config(config_file)
         self.is_running = False
         self.threads = []
@@ -1104,8 +1105,17 @@ class UserBehaviorSimulator:
 
     def watch_youtube(self):
         print(f"[{datetime.now().strftime('%H:%M:%S')}] Starting YouTube watching task")
+
+        # Debug: Print entire config structure
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] DEBUG: Config keys: {list(self.config.keys())}")
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] DEBUG: Looking for 'youtube_videos' in config...")
+
         videos = self.config.get('youtube_videos', [])
-        if videos:
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] DEBUG: Found {len(videos)} YouTube videos")
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] DEBUG: Videos length > 0: {len(videos) > 0}")
+
+        if len(videos) > 0:
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] DEBUG: Videos list: {videos}")
             video = random.choice(videos)
             try:
                 duration = self.get_youtube_video_duration(video)
@@ -1221,7 +1231,22 @@ class UserBehaviorSimulator:
                 print(f"[{datetime.now().strftime('%H:%M:%S')}] Using fallback watch time: {fallback_time} seconds")
                 time.sleep(fallback_time)
         else:
-            print(f"[{datetime.now().strftime('%H:%M:%S')}] No YouTube videos configured")
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] No YouTube videos configured or empty list")
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] DEBUG: len(videos) = {len(videos)}")
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] DEBUG: videos = {videos}")
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] DEBUG: type(videos) = {type(videos)}")
+            print(
+                f"[{datetime.now().strftime('%H:%M:%S')}] DEBUG: Config file being used: {getattr(self, 'config_file', 'unknown')}")
+            print(
+                f"[{datetime.now().strftime('%H:%M:%S')}] DEBUG: Please check your config.json file has 'youtube_videos' section with URLs")
+
+            # Show a sample of what the config should look like
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] DEBUG: Expected format:")
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] DEBUG: \"youtube_videos\": [")
+            print(
+                f"[{datetime.now().strftime('%H:%M:%S')}] DEBUG:     \"https://www.youtube.com/watch?v=dQw4w9WgXcQ\",")
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] DEBUG:     \"https://www.youtube.com/watch?v=3JZ_D3ELwOQ\"")
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] DEBUG: ]")
 
         try:
             self.close_browser()
