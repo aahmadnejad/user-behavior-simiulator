@@ -1019,28 +1019,51 @@ class UserBehaviorSimulator:
 
     def get_youtube_video_duration(self, video_url):
         try:
-            if platform.system() == "Windows":
-                result = subprocess.run(['powershell', '-Command',
-                                         f'(Invoke-WebRequest -Uri "{video_url}").Content'],
-                                        capture_output=True, text=True, timeout=30)
-                content = result.stdout
-            else:
-                result = subprocess.run(['curl', '-s', video_url],
-                                        capture_output=True, text=True, timeout=30)
-                content = result.stdout
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] Getting video duration for: {video_url}")
 
-            duration_match = re.search(r'"approxDurationMs":"(\d+)"', content)
-            if duration_match:
-                return int(duration_match.group(1)) / 1000
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            }
 
-            length_match = re.search(r'"lengthSeconds":"(\d+)"', content)
-            if length_match:
-                return int(length_match.group(1))
+            response = requests.get(video_url, headers=headers, timeout=15)
+            content = response.text
 
-        except:
-            pass
+            duration_patterns = [
+                r'"approxDurationMs":"(\d+)"',
+                r'"lengthSeconds":"(\d+)"',
+                r'duration":"PT(\d+)M(\d+)S"',
+                r'duration":"PT(\d+)S"'
+            ]
 
-        return random.randint(180, 600)
+            for pattern in duration_patterns:
+                match = re.search(pattern, content)
+                if match:
+                    if 'approxDurationMs' in pattern:
+                        duration = int(match.group(1)) / 1000
+                        print(f"[{datetime.now().strftime('%H:%M:%S')}] Found duration (ms): {duration} seconds")
+                        return int(duration)
+                    elif 'lengthSeconds' in pattern:
+                        duration = int(match.group(1))
+                        print(f"[{datetime.now().strftime('%H:%M:%S')}] Found duration (seconds): {duration} seconds")
+                        return duration
+                    elif 'PT' in pattern and len(match.groups()) == 2:
+                        minutes = int(match.group(1))
+                        seconds = int(match.group(2))
+                        duration = minutes * 60 + seconds
+                        print(f"[{datetime.now().strftime('%H:%M:%S')}] Found duration (PT format): {duration} seconds")
+                        return duration
+                    elif 'PT' in pattern and len(match.groups()) == 1:
+                        duration = int(match.group(1))
+                        print(
+                            f"[{datetime.now().strftime('%H:%M:%S')}] Found duration (PT seconds): {duration} seconds")
+                        return duration
+
+        except Exception as e:
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] Error getting video duration: {e}")
+
+        fallback_duration = random.randint(180, 600)
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] Using fallback duration: {fallback_duration} seconds")
+        return fallback_duration
 
     def watch_youtube(self):
         print(f"[{datetime.now().strftime('%H:%M:%S')}] Starting YouTube watching task")
@@ -1049,58 +1072,74 @@ class UserBehaviorSimulator:
             video = random.choice(videos)
             try:
                 duration = self.get_youtube_video_duration(video)
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] Opening YouTube video: {video}")
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] Video duration: {duration} seconds")
+
                 webbrowser.open(video)
 
-                time.sleep(random.randint(8, 15))
+                initial_wait = random.randint(10, 20)
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] Waiting {initial_wait} seconds for page to load...")
+                time.sleep(initial_wait)
 
                 try:
                     import pyautogui
+                    pyautogui.FAILSAFE = True
 
                     screen_width, screen_height = pyautogui.size()
                     center_x = screen_width // 2
                     center_y = screen_height // 2
 
-                    for attempt in range(3):
+                    print(f"[{datetime.now().strftime('%H:%M:%S')}] Attempting to start video playback...")
+
+                    play_attempts = [
+                        (center_x, center_y),
+                        (center_x - 100, center_y),
+                        (center_x + 100, center_y),
+                        (center_x, center_y - 100),
+                        (center_x, center_y + 100),
+                        (center_x - 50, center_y - 50),
+                        (center_x + 50, center_y + 50)
+                    ]
+
+                    for attempt, (x, y) in enumerate(play_attempts):
                         try:
-                            play_button = pyautogui.locateCenterOnScreen(None)
-                        except:
-                            play_positions = [
-                                (center_x, center_y),
-                                (center_x - 50, center_y),
-                                (center_x + 50, center_y),
-                                (center_x, center_y - 50),
-                                (center_x, center_y + 50)
-                            ]
+                            print(f"[{datetime.now().strftime('%H:%M:%S')}] Click attempt {attempt + 1} at ({x}, {y})")
+                            pyautogui.click(x, y)
+                            time.sleep(3)
 
-                            for x, y in play_positions:
-                                try:
-                                    pyautogui.click(x, y)
-                                    time.sleep(2)
-                                    break
-                                except:
-                                    continue
-                            break
+                            if attempt == 2:
+                                print(f"[{datetime.now().strftime('%H:%M:%S')}] Trying spacebar to play/pause")
+                                pyautogui.press('space')
+                                time.sleep(2)
+                                pyautogui.press('space')
+                                time.sleep(2)
 
-                        time.sleep(2)
+                            if attempt >= 3:
+                                break
+
+                        except Exception as e:
+                            print(f"[{datetime.now().strftime('%H:%M:%S')}] Click attempt {attempt + 1} failed: {e}")
+                            continue
 
                     time.sleep(5)
-
-                    pyautogui.press('space')
-                    time.sleep(2)
-                    pyautogui.press('space')
-
-                    print(f"[{datetime.now().strftime('%H:%M:%S')}] Attempted to start video playback")
+                    print(f"[{datetime.now().strftime('%H:%M:%S')}] Video should be playing now")
 
                 except ImportError:
-                    print(f"[{datetime.now().strftime('%H:%M:%S')}] Video auto-play requires pyautogui")
+                    print(f"[{datetime.now().strftime('%H:%M:%S')}] PyAutoGUI not available - video will play manually")
                 except Exception as e:
-                    print(f"[{datetime.now().strftime('%H:%M:%S')}] Video play attempt error: {e}")
+                    print(f"[{datetime.now().strftime('%H:%M:%S')}] Auto-play attempt failed: {e}")
 
                 check_interval = self.config.get('video_completion_check_interval', 30)
-                elapsed = 0
+                total_elapsed = 0
+                watch_duration = min(duration, 600)
 
-                while elapsed < duration:
-                    wait_time = min(check_interval, duration - elapsed)
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] Watching video for {watch_duration} seconds...")
+
+                while total_elapsed < watch_duration and self.is_running:
+                    wait_time = min(check_interval, watch_duration - total_elapsed)
+
+                    print(
+                        f"[{datetime.now().strftime('%H:%M:%S')}] Watching... {total_elapsed}/{watch_duration} seconds")
 
                     if wait_time > 30 and self.config.get('page_interaction', {}).get('scroll_enabled', False):
                         scroll_duration = random.randint(5, min(15, int(wait_time * 0.3)))
@@ -1108,6 +1147,7 @@ class UserBehaviorSimulator:
 
                         if remaining_wait > 5:
                             time.sleep(random.randint(5, 10))
+                            print(f"[{datetime.now().strftime('%H:%M:%S')}] Scrolling for {scroll_duration} seconds...")
                             self.simulate_human_scrolling(scroll_duration)
                             time.sleep(remaining_wait)
                         else:
@@ -1115,13 +1155,23 @@ class UserBehaviorSimulator:
                     else:
                         time.sleep(wait_time)
 
-                    elapsed += wait_time
+                    total_elapsed += wait_time
 
-                self.close_browser()
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] Finished watching video")
 
-            except:
-                time.sleep(random.randint(180, 600))
-                self.close_browser()
+            except Exception as e:
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] YouTube watch error: {e}")
+                fallback_time = random.randint(180, 600)
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] Using fallback watch time: {fallback_time} seconds")
+                time.sleep(fallback_time)
+        else:
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] No YouTube videos configured")
+
+        try:
+            self.close_browser()
+        except Exception as e:
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] Browser close error: {e}")
+
         print(f"[{datetime.now().strftime('%H:%M:%S')}] Completed YouTube watching task")
         if not self.config.get('scheduled_tasks', {}).get('enabled', False):
             self.wait_between_tasks()
