@@ -1112,45 +1112,71 @@ class UserBehaviorSimulator:
                 print(f"[{datetime.now().strftime('%H:%M:%S')}] Opening YouTube video: {video}")
                 print(f"[{datetime.now().strftime('%H:%M:%S')}] Video duration: {duration} seconds")
 
-                webbrowser.open(video)
+                self.open_in_firefox(video)
 
-                initial_wait = random.randint(15, 25)
-                print(f"[{datetime.now().strftime('%H:%M:%S')}] Waiting {initial_wait} seconds for page to load...")
+                initial_wait = random.randint(20, 30)
+                print(
+                    f"[{datetime.now().strftime('%H:%M:%S')}] Waiting {initial_wait} seconds for Firefox and page to load...")
                 time.sleep(initial_wait)
 
                 try:
                     import pyautogui
                     pyautogui.FAILSAFE = True
-                    pyautogui.PAUSE = 0.5
+                    pyautogui.PAUSE = 1.0
 
-                    print(f"[{datetime.now().strftime('%H:%M:%S')}] Attempting to start video with spacebar...")
+                    print(f"[{datetime.now().strftime('%H:%M:%S')}] Starting video playback and ad handling...")
 
-                    for attempt in range(5):
+                    pyautogui.press('space')
+                    time.sleep(3)
+                    print(f"[{datetime.now().strftime('%H:%M:%S')}] Pressed spacebar to start video")
+
+                    ad_skip_attempts = 0
+                    max_ad_attempts = 8
+
+                    while ad_skip_attempts < max_ad_attempts:
+                        print(
+                            f"[{datetime.now().strftime('%H:%M:%S')}] Ad skip attempt {ad_skip_attempts + 1}/{max_ad_attempts}")
+
                         try:
-                            print(f"[{datetime.now().strftime('%H:%M:%S')}] Spacebar attempt {attempt + 1}")
-                            pyautogui.press('space')
-                            time.sleep(3)
+                            screen_width, screen_height = pyautogui.size()
 
-                            if attempt == 1:
-                                print(f"[{datetime.now().strftime('%H:%M:%S')}] Trying 'k' key (YouTube shortcut)")
-                                pyautogui.press('k')
-                                time.sleep(2)
+                            skip_positions = [
+                                (screen_width - 100, 100),
+                                (screen_width - 150, 120),
+                                (screen_width - 80, 80),
+                                (screen_width - 120, 100),
+                                (screen_width - 200, 150)
+                            ]
 
-                            if attempt == 2:
-                                print(f"[{datetime.now().strftime('%H:%M:%S')}] Trying Enter key")
-                                pyautogui.press('enter')
-                                time.sleep(2)
+                            for x, y in skip_positions:
+                                pyautogui.click(x, y)
+                                time.sleep(1)
 
-                            if attempt >= 2:
-                                break
+                            pyautogui.press('tab')
+                            time.sleep(0.5)
+                            pyautogui.press('enter')
+                            time.sleep(2)
+
+                            pyautogui.press('tab')
+                            pyautogui.press('tab')
+                            pyautogui.press('enter')
+                            time.sleep(2)
+
+                            print(f"[{datetime.now().strftime('%H:%M:%S')}] Attempted to skip ad")
 
                         except Exception as e:
-                            print(
-                                f"[{datetime.now().strftime('%H:%M:%S')}] Key press attempt {attempt + 1} failed: {e}")
-                            time.sleep(2)
-                            continue
+                            print(f"[{datetime.now().strftime('%H:%M:%S')}] Ad skip attempt failed: {e}")
 
-                    time.sleep(5)
+                        time.sleep(8)
+                        ad_skip_attempts += 1
+
+                        if ad_skip_attempts >= 5:
+                            print(
+                                f"[{datetime.now().strftime('%H:%M:%S')}] Assuming ad period is over, starting main video")
+                            pyautogui.press('space')
+                            time.sleep(2)
+                            break
+
                     print(f"[{datetime.now().strftime('%H:%M:%S')}] Video should be playing now")
 
                 except ImportError:
@@ -1205,6 +1231,51 @@ class UserBehaviorSimulator:
         print(f"[{datetime.now().strftime('%H:%M:%S')}] Completed YouTube watching task")
         if not self.config.get('scheduled_tasks', {}).get('enabled', False):
             self.wait_between_tasks()
+
+    def open_in_firefox(self, url):
+        try:
+            current_os = platform.system()
+
+            if current_os == "Windows":
+                firefox_paths = [
+                    r"C:\Program Files\Mozilla Firefox\firefox.exe",
+                    r"C:\Program Files (x86)\Mozilla Firefox\firefox.exe",
+                    os.path.join(os.environ.get('PROGRAMFILES', ''), 'Mozilla Firefox', 'firefox.exe'),
+                    os.path.join(os.environ.get('PROGRAMFILES(X86)', ''), 'Mozilla Firefox', 'firefox.exe')
+                ]
+
+                firefox_path = None
+                for path in firefox_paths:
+                    if os.path.exists(path):
+                        firefox_path = path
+                        break
+
+                if firefox_path:
+                    subprocess.Popen([firefox_path, url])
+                    print(f"[{datetime.now().strftime('%H:%M:%S')}] Opened in Firefox: {firefox_path}")
+                else:
+                    print(f"[{datetime.now().strftime('%H:%M:%S')}] Firefox not found, using default browser")
+                    webbrowser.open(url)
+
+            elif current_os == "Linux":
+                try:
+                    subprocess.Popen(['firefox', url])
+                    print(f"[{datetime.now().strftime('%H:%M:%S')}] Opened in Firefox (Linux)")
+                except FileNotFoundError:
+                    print(f"[{datetime.now().strftime('%H:%M:%S')}] Firefox not found, using default browser")
+                    webbrowser.open(url)
+
+            else:
+                try:
+                    subprocess.Popen(['open', '-a', 'Firefox', url])
+                    print(f"[{datetime.now().strftime('%H:%M:%S')}] Opened in Firefox (macOS)")
+                except:
+                    print(f"[{datetime.now().strftime('%H:%M:%S')}] Firefox not found, using default browser")
+                    webbrowser.open(url)
+
+        except Exception as e:
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] Firefox launch error: {e}, using default browser")
+            webbrowser.open(url)
 
     def create_text_files(self):
         print(f"[{datetime.now().strftime('%H:%M:%S')}] Starting text file creation task")
