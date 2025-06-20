@@ -89,6 +89,16 @@ class UserBehaviorSimulator:
     def should_run_scheduled_task(self, task_config):
         if not task_config.get('enabled', False):
             return False
+            
+        current_time = datetime.now().strftime("%H:%M")
+        target_time = task_config.get('time', '00:00')
+
+        current_datetime = datetime.strptime(current_time, "%H:%M")
+        target_datetime = datetime.strptime(target_time, "%H:%M")
+
+        time_diff = abs((current_datetime - target_datetime).total_seconds())
+
+        return time_diff <= 60
 
     def run_random_applications(self):
         if not self.config.get('app_execution', {}).get('enabled', False):
