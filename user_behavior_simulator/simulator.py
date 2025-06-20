@@ -669,16 +669,6 @@ class UserBehaviorSimulator:
 
         return apps[:15]
 
-        current_time = datetime.now().strftime("%H:%M")
-        target_time = task_config.get('time', '00:00')
-
-        current_datetime = datetime.strptime(current_time, "%H:%M")
-        target_datetime = datetime.strptime(target_time, "%H:%M")
-
-        time_diff = abs((current_datetime - target_datetime).total_seconds())
-
-        return time_diff <= 60
-
     def get_next_scheduled_task(self):
         if not self.config.get('scheduled_tasks', {}).get('enabled', False):
             return None
